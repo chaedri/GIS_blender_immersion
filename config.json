@@ -1,0 +1,7 @@
+{
+    "watchFolder": "C:\\TL_coupling\\Watch\\",
+    "demName": "elev.tif",
+    "waterName": "water.tif",
+    "buildingName": "buildings.shp",
+    "CRS": "EPSG:32119"
+  }

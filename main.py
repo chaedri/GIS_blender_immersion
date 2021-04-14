@@ -2,17 +2,21 @@
 import sys
 import os
 import bpy
+import json
 
-################# SETTINGS (for JSON config file) ###################
-watchFolder = 'C:\\TL_coupling\\Watch\\'
-demFile = os.path.join(watchFolder, 'elev.tif')
-waterFile = os.path.join(watchFolder, 'water.tif')
-buildingFile = os.path.join(watchFolder, 'buildings.shp')
-CRS = 'EPSG:32119'
+# import materials
 
+################# SETTINGS from JSON ###################
+configFile = 'C:\\Users\\caitl\\Documents\\CourseWork\\Spring2021\\GIS714\\FinalProj\\GIS_blender_immersion\\config.json'
+
+with open(configFile, 'r') as f:
+    configuration = json.load(f)
+    demFile = os.path.join(configuration['watchFolder'], configuration['demName'])
+    waterFile = os.path.join(configuration['watchFolder'], configuration['waterName'])
+    buildingFile = os.path.join(configuration['watchFolder'], configuration['buildingName'])
+    CRS = configuration['CRS']
 
 ################## Functions ###################
-
 
 def assign_texture(objMaterials, texture):
         # Assign it to object
@@ -24,28 +28,47 @@ def assign_texture(objMaterials, texture):
         objMaterials.append(texture)
     return objMaterials
 
-
-def texture_terrain(terrain, z_color=FALSE):
+def create_material(name):
     # Create new material
-    ter = bpy.data.materials.get("terrain_texture")
-    if ter is None:
+    mat = bpy.data.materials.get(name)
+    if mat is None:
         # create material
-        ter = bpy.data.materials.new(name="terrain_texture")
+        mat = bpy.data.materials.new(name=name)
+    return mat
+    
+    
+def texture_terrain(terrain, z_color=False):
+    # Create new material
+    ter = create_material("terrain_texture")
     
     # Configure Nodes: use nodes
     ter.use_nodes = True
+    nodes = ter.node_tree.nodes
+    for node in nodes:
+        nodes.remove(node)
     
     # Ortho photo or Z-Color option
-    if z_color=TRUE:
+    if z_color==True:
         #color terrain by z elevation
-    else:
+        geometry = nodes.new("ShaderNodeNewGeometry")
+        sepxyz = nodes.new("ShaderNodeSeparateXYZ")
+        ZtoRGB = nodes.new("ShaderNodeValToRGB")
+        bsdf = nodes.new("ShaderNodeBsdfPrincipled")
+        output = nodes.new("ShaderNodeOutputMaterial") 
+        
+        ter.node_tree.links.new(sepxyz.inputs['Vector'], geometry.outputs['Position'])
+        ter.node_tree.links.new(ZtoRGB.inputs['Fac'], sepxyz.outputs['Z'])
+        ter.node_tree.links.new(bsdf.inputs['Base Color'], ZtoRGB.outputs['Color'])
+        ter.node_tree.links.new(output.inputs['Surface'], bsdf.outputs['BSDF'])
+        
+    elif z_color==False:
         # Create shading node
-        bsdf = ter.node_tree.nodes.new("ShaderNodeBsdfPrincipled")
+        bsdf = nodes.new("ShaderNodeBsdfPrincipled")
         # Create image node
-        texImage = ter.node_tree.nodes.new('ShaderNodeTexImage')
+        texImage = nodes.new('ShaderNodeTexImage')
         texImage.image = bpy.data.images.load("C:\\TL_coupling\\Watch\\ortho.png")
         # Create output material node
-        output=ter.node_tree.nodes.new("ShaderNodeOutputMaterial")
+        output=nodes.new("ShaderNodeOutputMaterial")
         
         # Link image to Shading node color
         ter.node_tree.links.new(bsdf.inputs['Base Color'], texImage.outputs['Color'])
@@ -57,41 +80,41 @@ def texture_terrain(terrain, z_color=FALSE):
 
 def texture_water(water):
     # Create material
-    mat = bpy.data.materials.get("Water_texture")
-    if mat is None:
-        # create material
-        mat = bpy.data.materials.new(name="Water_texture")
-    
+    wat = create_material("water_texture")
+
     # Configure Nodes: use nodes
-    mat.use_nodes=True
+    wat.use_nodes=True
+    nodes = wat.node_tree.nodes
+    for node in nodes:
+        nodes.remove(node)
 
     # Add wave Texture
-    waves = mat.node_tree.nodes.new("ShaderNodeTexWave")
+    waves = wat.node_tree.nodes.new("ShaderNodeTexWave")
     waves.bands_direction = 'Y'
     waves.inputs[1].default_value = 30 #scale
     waves.inputs[2].default_value = 10.0 #distortion
 
     # Add wave coloring
-    wave_color = mat.node_tree.nodes.new("ShaderNodeBsdfGlass")
+    wave_color = wat.node_tree.nodes.new("ShaderNodeBsdfGlass")
     wave_color.inputs[0].default_value = (0.28, 0.86, 0.91, 1)#RGBA Color
     wave_color.inputs[1].default_value = 0.24
      
     # Output Material
-    output=mat.node_tree.nodes.new("ShaderNodeOutputMaterial")
+    output=wat.node_tree.nodes.new("ShaderNodeOutputMaterial")
 
     # Links
-    mat.node_tree.links.new(output.inputs['Surface'], wave_color.outputs['BSDF'])
-    mat.node_tree.links.new(output.inputs['Displacement'], waves.outputs['Color'])
+    wat.node_tree.links.new(output.inputs['Surface'], wave_color.outputs['BSDF'])
+    wat.node_tree.links.new(output.inputs['Displacement'], waves.outputs['Color'])
     
     # Assign Material to Water object
-    assign_texture(water.data.materials, mat)
+    assign_texture(water.data.materials, wat)
     return water
 
 ######################## Main ############################
 # terrain
 bpy.ops.importgis.georaster(filepath=demFile, importMode="DEM", subdivision="mesh", rastCRS=CRS)
 terrain = bpy.context.active_object
-terrain = texture_terrain(terrain, z_col=FALSE)
+terrain = texture_terrain(terrain, z_color=True)
 
 ## water
 bpy.ops.importgis.georaster(filepath=waterFile, subdivision="mesh", rastCRS=CRS)
@@ -100,10 +123,7 @@ water = texture_water(water)
 
 # buildings
 bpy.ops.importgis.shapefile(filepath=buildingFile,fieldElevName="elevation",fieldExtrudeName="height",fieldObjName='cat',separateObjects=True,shpCRS=CRS)
-
-
-
-#    
+ 
 ## viewpoint
 #viewFile = os.path.join(watchFolder, 'view.shp')
 #view = bpy.ops.importgis.shapefile(filepath=viewFile, elevSource ='terrain', shpCRS=CRS)
