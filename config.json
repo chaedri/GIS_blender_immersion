@@ -3,5 +3,8 @@
     "demName": "elev.tif",
     "waterName": "water.tif",
     "buildingName": "buildings.shp",
-    "CRS": "EPSG:32119"
+    "viewName": "view.shp",
+    "CRS": "EPSG:32119",
+    "treeName": "EA19_American_Linden\\EA19m.obj",
+    "Flood": 0
   }

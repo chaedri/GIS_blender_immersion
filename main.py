@@ -3,6 +3,7 @@ import sys
 import os
 import bpy
 import json
+import math
 
 # import materials
 
@@ -14,7 +15,10 @@ with open(configFile, 'r') as f:
     demFile = os.path.join(configuration['watchFolder'], configuration['demName'])
     waterFile = os.path.join(configuration['watchFolder'], configuration['waterName'])
     buildingFile = os.path.join(configuration['watchFolder'], configuration['buildingName'])
+    viewFile = os.path.join(configuration['watchFolder'], configuration['viewName'])
     CRS = configuration['CRS']
+    treeFile = os.path.join(configuration['watchFolder'], configuration['treeName'])
+    Flood = configuration['Flood']
 
 ################## Functions ###################
 
@@ -35,7 +39,26 @@ def create_material(name):
         # create material
         mat = bpy.data.materials.new(name=name)
     return mat
+
+def elevation_color_ramp(color_ramp):
+    # Removing the First Element this is not necessary but done to show how to remove color stops
+    color_ramp.elements.remove(color_ramp.elements[0])
+
+    # Adding new color stop at location 0.100
+    color_ramp.elements.new(0.100)
+
+    # Setting the color for the stop that we recently created
+    color_ramp.elements[0].color = (0.14,0.6,0.14,1)
+
+    #creating the second stop the same way
+    color_ramp.elements.new(0.55)
+    color_ramp.elements[1].color = (0.9,0.75,0.25,1)
+
+    # Assigning position and color to already present stop
+    color_ramp.elements[2].position = (0.995)
+    color_ramp.elements[2].color = (0.99,0.95,0.85,1)
     
+    return color_ramp
     
 def texture_terrain(terrain, z_color=False):
     # Create new material
@@ -53,6 +76,7 @@ def texture_terrain(terrain, z_color=False):
         geometry = nodes.new("ShaderNodeNewGeometry")
         sepxyz = nodes.new("ShaderNodeSeparateXYZ")
         ZtoRGB = nodes.new("ShaderNodeValToRGB")
+        elevation_color_ramp(ZtoRGB.color_ramp)
         bsdf = nodes.new("ShaderNodeBsdfPrincipled")
         output = nodes.new("ShaderNodeOutputMaterial") 
         
@@ -114,6 +138,7 @@ def texture_water(water):
 # terrain
 bpy.ops.importgis.georaster(filepath=demFile, importMode="DEM", subdivision="mesh", rastCRS=CRS)
 terrain = bpy.context.active_object
+bpy.ops.transform.translate(value=(0, 0, 1.5-Flood))
 terrain = texture_terrain(terrain, z_color=True)
 
 ## water
@@ -122,8 +147,26 @@ water = bpy.context.active_object
 water = texture_water(water)
 
 # buildings
-bpy.ops.importgis.shapefile(filepath=buildingFile,fieldElevName="elevation",fieldExtrudeName="height",fieldObjName='cat',separateObjects=True,shpCRS=CRS)
+bpy.ops.importgis.shapefile(filepath=buildingFile,elevSource="FIELD",fieldElevName="elevation",fieldExtrudeName="height",fieldObjName='cat',separateObjects=False,shpCRS=CRS)
  
-## viewpoint
-#viewFile = os.path.join(watchFolder, 'view.shp')
-#view = bpy.ops.importgis.shapefile(filepath=viewFile, elevSource ='terrain', shpCRS=CRS)
+# viewpoint
+bpy.ops.importgis.shapefile(filepath=viewFile, elevSource ='OBJ', objElevName='elev', shpCRS=CRS)
+view = bpy.context.active_object
+
+# import tree file, translate and rotate/scale
+loc = view.location
+
+# import
+bpy.ops.import_scene.obj(filepath=treeFile)
+tree = bpy.context.selected_objects[0]
+# change name
+tree.name = "tree"
+# move to view point
+bpy.ops.transform.translate(value=loc)
+# rotate to vertical
+bpy.ops.transform.rotate(value=math.pi/2, orient_axis='X', orient_type='LOCAL')
+# scale to normal tree heigh
+dims = bpy.data.objects['tree'].dimensions
+new_height = 18
+scale = float(new_height)/dims[2]
+bpy.ops.transform.resize(value=(scale, scale, scale))
