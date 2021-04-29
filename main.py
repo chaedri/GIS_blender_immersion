@@ -5,20 +5,18 @@ import bpy
 import json
 import math
 
-# import materials
-
 ################# SETTINGS from JSON ###################
-configFile = 'C:\\Users\\caitl\\Documents\\CourseWork\\Spring2021\\GIS714\\FinalProj\\GIS_blender_immersion\\config.json'
+configFile = 'C:\Path\To\GIS_blender_immersion\config.json'
 
 with open(configFile, 'r') as f:
     configuration = json.load(f)
-    demFile = os.path.join(configuration['watchFolder'], configuration['demName'])
-    waterFile = os.path.join(configuration['watchFolder'], configuration['waterName'])
-    buildingFile = os.path.join(configuration['watchFolder'], configuration['buildingName'])
-    viewFile = os.path.join(configuration['watchFolder'], configuration['viewName'])
+    demFile = os.path.join(configuration['watch_folder'], configuration['dem_name'])
+    waterFile = os.path.join(configuration['watch_folder'], configuration['water_name'])
+    buildingFile = os.path.join(configuration['watch_folder'], configuration['building_name'])
+    viewFile = os.path.join(configuration['watch_folder'], configuration['view_name'])
     CRS = configuration['CRS']
-    treeFile = os.path.join(configuration['watchFolder'], configuration['treeName'])
-    Flood = configuration['Flood']
+    treeFile = os.path.join(configuration['watch_folder'], configuration['tree_name'])
+    Flood = configuration['flood_level']
 
 ################## Functions ###################
 
@@ -45,18 +43,18 @@ def elevation_color_ramp(color_ramp):
     color_ramp.elements.remove(color_ramp.elements[0])
 
     # Adding new color stop at location 0.100
-    color_ramp.elements.new(0.100)
+    color_ramp.elements.new(0.06)
 
     # Setting the color for the stop that we recently created
-    color_ramp.elements[0].color = (0.14,0.6,0.14,1)
+    color_ramp.elements[0].color = (0.046,0.16,0.052,1)
 
     #creating the second stop the same way
-    color_ramp.elements.new(0.55)
-    color_ramp.elements[1].color = (0.9,0.75,0.25,1)
+    color_ramp.elements.new(0.66)
+    color_ramp.elements[1].color = (0.608,0.507,0.169,1)
 
     # Assigning position and color to already present stop
-    color_ramp.elements[2].position = (0.995)
-    color_ramp.elements[2].color = (0.99,0.95,0.85,1)
+    color_ramp.elements[2].position = (0.999)
+    color_ramp.elements[2].color = (0.71,0.68,0.38,1)
     
     return color_ramp
     
@@ -73,17 +71,23 @@ def texture_terrain(terrain, z_color=False):
     # Ortho photo or Z-Color option
     if z_color==True:
         #color terrain by z elevation
-        geometry = nodes.new("ShaderNodeNewGeometry")
-        sepxyz = nodes.new("ShaderNodeSeparateXYZ")
+        coords = nodes.new("ShaderNodeTexCoord")
+        mapping = nodes.new("ShaderNodeMapping")
+        mapping.vector_type = 'TEXTURE'
+        mapping.inputs['Location'].default_value = (0, 0, -1.5)
+        mapping.inputs['Scale'].default_value = (10, 0, 0)
+        mapping.inputs['Rotation'].default_value = (0, -math.pi/2, 0)
+        grad = nodes.new("ShaderNodeTexGradient")
         ZtoRGB = nodes.new("ShaderNodeValToRGB")
         elevation_color_ramp(ZtoRGB.color_ramp)
-        bsdf = nodes.new("ShaderNodeBsdfPrincipled")
+        emission = nodes.new("ShaderNodeEmission")
         output = nodes.new("ShaderNodeOutputMaterial") 
         
-        ter.node_tree.links.new(sepxyz.inputs['Vector'], geometry.outputs['Position'])
-        ter.node_tree.links.new(ZtoRGB.inputs['Fac'], sepxyz.outputs['Z'])
-        ter.node_tree.links.new(bsdf.inputs['Base Color'], ZtoRGB.outputs['Color'])
-        ter.node_tree.links.new(output.inputs['Surface'], bsdf.outputs['BSDF'])
+        ter.node_tree.links.new(mapping.inputs['Vector'], coords.outputs['Object'])
+        ter.node_tree.links.new(grad.inputs['Vector'], mapping.outputs['Vector'])
+        ter.node_tree.links.new(ZtoRGB.inputs['Fac'], grad.outputs['Color'])
+        ter.node_tree.links.new(emission.inputs['Color'], ZtoRGB.outputs['Color'])
+        ter.node_tree.links.new(output.inputs['Surface'], emission.outputs['Emission'])
         
     elif z_color==False:
         # Create shading node
@@ -138,8 +142,8 @@ def texture_water(water):
 # terrain
 bpy.ops.importgis.georaster(filepath=demFile, importMode="DEM", subdivision="mesh", rastCRS=CRS)
 terrain = bpy.context.active_object
-bpy.ops.transform.translate(value=(0, 0, 1.5-Flood))
-terrain = texture_terrain(terrain, z_color=True)
+bpy.ops.transform.translate(value=(0, 0, Flood))
+terrain = texture_terrain(terrain, z_color=False)
 
 ## water
 bpy.ops.importgis.georaster(filepath=waterFile, subdivision="mesh", rastCRS=CRS)

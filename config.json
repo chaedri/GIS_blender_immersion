@@ -1,10 +1,10 @@
 {
-    "watchFolder": "C:\\TL_coupling\\Watch\\",
-    "demName": "elev.tif",
-    "waterName": "water.tif",
-    "buildingName": "buildings.shp",
-    "viewName": "view.shp",
+    "watch_folder": "C:\\TL_coupling\\Watch\\",
+    "dem_name": "elev.tif",
+    "water_name": "water.tif",
+    "building_name": "buildings.shp",
+    "view_name": "view.shp",
     "CRS": "EPSG:32119",
-    "treeName": "EA19_American_Linden\\EA19m.obj",
-    "Flood": 0
+    "tree_name": "EA19_American_Linden\\EA19m.obj",
+    "flood_level": 0
   }
