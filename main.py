@@ -6,9 +6,9 @@ import json
 import math
 
 ################# SETTINGS from JSON ###################
-configFile = 'C:\Path\To\GIS_blender_immersion\config.json'
+config_file = 'C:\Path\To\GIS_blender_immersion\config.json'
 
-with open(configFile, 'r') as f:
+with open(config_file, 'r') as f:
     configuration = json.load(f)
     demFile = os.path.join(configuration['watch_folder'], configuration['dem_name'])
     waterFile = os.path.join(configuration['watch_folder'], configuration['water_name'])
