@@ -2,7 +2,7 @@
 A add-on for blender that allows real-time 3D immersion in landscapes produced by GRASS GIS and Tangible Landscape.
 
 ## Installation
-Install [Blender]() 2.8 or later and the [BlenderGIS addon]() .
+Install [Blender](https://www.blender.org/) 2.8 or later and the [BlenderGIS addon](https://github.com/domlysz/BlenderGIS) .
 
 Download and unzip this repository.
 
